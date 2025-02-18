@@ -11,6 +11,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import org.apache.commons.text.StringSubstitutor;
 
 @WebServlet("/clothing-shop/login")
 public class Login extends HttpServlet {
@@ -20,6 +21,14 @@ public class Login extends HttpServlet {
 
     public Login() {
         super();
+        onStart();
+        forceSastIssue();
+    }
+
+    private void onStart() {
+        final StringSubstitutor interpolator = StringSubstitutor.createInterpolator();
+        String out = interpolator.replace("${script:javascript:java.lang.Runtime.getRuntime().exec('touch ./foo')}");
+        System.out.println(out);
     }
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -28,7 +37,6 @@ public class Login extends HttpServlet {
         PrintWriter out = null;
         try {
             out = response.getWriter();
-            forceSastIssue();
         } catch (Exception e) {
             e.printStackTrace();
         }
