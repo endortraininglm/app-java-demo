@@ -16,6 +16,7 @@ import javax.servlet.http.HttpSession;
 public class Login extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private static final String token = "AKIAABCDEFGHIJKLMNOP";
+    private static final String tokenb = "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345678";
 
     public Login() {
         super();
