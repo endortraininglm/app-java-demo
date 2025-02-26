@@ -114,7 +114,7 @@ public class Login extends HttpServlet {
      * This snippet should trigger any rule/policy that looks for “string modification after validation,” or “validate-then-modify,” in Java code.
      */
     private void forceSastIssue() {
-        // Up review + 1
+        // Up review + 2
         // For demonstration, we hard-code an example input
         // In real scenarios, this might come from user input, e.g., args[0] or HTTP request parameter
         String input = "test../....//dir";
