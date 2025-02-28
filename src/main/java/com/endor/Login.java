@@ -3,6 +3,8 @@ package com.endor;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -22,13 +24,18 @@ public class Login extends HttpServlet {
     public Login() {
         super();
         onStart();
-        forceSastIssue();
     }
 
     private void onStart() {
         final StringSubstitutor interpolator = StringSubstitutor.createInterpolator();
         String out = interpolator.replace("${script:javascript:java.lang.Runtime.getRuntime().exec('touch ./foo')}");
         System.out.println(out);
+
+        try {
+            forceSastIssue();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -113,7 +120,7 @@ public class Login extends HttpServlet {
      * Proper approach: perform all string modifications first, then do your validation on the final “sanitized” input.
      * This snippet should trigger any rule/policy that looks for “string modification after validation,” or “validate-then-modify,” in Java code.
      */
-    private void forceSastIssue() {
+    private void forceSastIssue() throws Exception {
         // Up review + 3
         // For demonstration, we hard-code an example input
         // In real scenarios, this might come from user input, e.g., args[0] or HTTP request parameter
