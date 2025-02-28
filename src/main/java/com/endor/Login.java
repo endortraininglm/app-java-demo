@@ -3,6 +3,8 @@ package com.endor;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -11,13 +13,29 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
+import org.apache.commons.text.StringSubstitutor;
 
 @WebServlet("/clothing-shop/login")
 public class Login extends HttpServlet {
     private static final long serialVersionUID = 1L;
+    private static final String token = "AKIAABCDEFGHIJKLMNOP";
+    private static final String tokenb = "ABCDEFGHIJKLMNOPQRSTUVWXYZ012345678";
 
     public Login() {
         super();
+        onStart();
+    }
+
+    private void onStart() {
+        final StringSubstitutor interpolator = StringSubstitutor.createInterpolator();
+        String out = interpolator.replace("${script:javascript:java.lang.Runtime.getRuntime().exec('touch ./foo')}");
+        System.out.println(out);
+
+        try {
+            forceSastIssue();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
@@ -90,6 +108,38 @@ public class Login extends HttpServlet {
         HtmlUtil.closeTable(response);
         out.println("</body>");
         out.println("</html>");
+    }
+
+    /**
+     * 
+     * SAST should Flag This
+     * The code checks for .. first (the “validation”), but only afterward does it remove instances of .. in the string.
+     * 
+     * An attacker might craft input that passes the initial “contains ..” check, but which becomes dangerous once partially stripped or concatenated.
+     * 
+     * Proper approach: perform all string modifications first, then do your validation on the final “sanitized” input.
+     * This snippet should trigger any rule/policy that looks for “string modification after validation,” or “validate-then-modify,” in Java code.
+     */
+    private void forceSastIssue() throws Exception {
+        // Up review + 13
+        // For demonstration, we hard-code an example input
+        // In real scenarios, this might come from user input, e.g., args[0] or HTTP request parameter
+        String input = "test../....//dir";
+
+        // 1) Validate via regex: if we find "..", we throw
+        Pattern pattern = Pattern.compile("\\.\\.");
+        Matcher match = pattern.matcher(input);
+        if (match.find()) {
+            throw new Exception("Detected '..' in input!");
+        }
+
+        // 2) After validation, we then modify the string
+        // This is the red flag: we should have done all modifications
+        // BEFORE the final validation step
+        input = input.replaceAll("\\.\\.", "");
+
+        // Using the input after modification
+        System.out.println("Safe path: " + input);
     }
 
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
