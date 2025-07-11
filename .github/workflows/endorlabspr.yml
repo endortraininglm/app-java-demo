@@ -2,8 +2,8 @@ name: Endor Labs Dependency and Secrets Scan
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
+#  pull_request:
+#    branches: [ main ]
 jobs:
   scan:
     permissions:
