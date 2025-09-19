@@ -33,7 +33,19 @@
 			<groupId>com.github.javafaker</groupId>
 			<artifactId>javafaker</artifactId>
 			<version>0.18</version>
+<!--			<exclusions>-->
+<!--				<exclusion>-->
+<!--					<groupId>org.yaml</groupId>-->
+<!--					<artifactId>snakeyaml</artifactId>-->
+<!--				</exclusion>-->
+<!--			</exclusions>-->
 		</dependency>
+<!--		&lt;!&ndash; Explicitly adding SnakeYAML 1.26 to fix vulnerability GHSA-rvwf-54qp-4r6v &ndash;&gt;-->
+<!--		<dependency>-->
+<!--			<groupId>org.yaml</groupId>-->
+<!--			<artifactId>snakeyaml</artifactId>-->
+<!--			<version>1.26</version>-->
+<!--		</dependency>-->
 		<dependency>
 			<groupId>javax.servlet</groupId>
 			<artifactId>javax.servlet-api</artifactId>
