@@ -15,7 +15,7 @@ import com.github.javafaker.Faker;
 @WebServlet("/clothing-shop/LoginSuccess")
 public class LoginSuccess extends HttpServlet {
 	private static final long serialVersionUID = 1L;
-
+	private static final String githubToken = "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";
 	/**
 	 * Adding a comment
 	 * @param request
