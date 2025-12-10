@@ -1,0 +1,48 @@
+name: Endor Labs Scan
+on:
+  push:
+    branches:
+      - test_sast_regressions
+env:
+  ENDOR_SCAN_SEMGREP_DEBUG: true
+  ENDOR_SCAN_SEMGREP_VERBOSE: true
+
+jobs:
+  scan-repo:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Setup namespace Environment Variables
+        run: |
+          NAMESPACE=$(jq -r '.inputs.tenant_name' $GITHUB_EVENT_PATH)
+          echo "::add-mask::$NAMESPACE" 
+          echo NAMESPACE=$NAMESPACE >> $GITHUB_ENV
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: microsoft
+          java-version: "17"
+          cache: maven
+          cache-dependency-path: pom.xml
+
+      - name: Compile Package
+        run: mvn clean install
+
+      - name: Endor Labs Scan
+        uses: endorlabs/github-action@main
+        with:
+          namespace: "leonardo-learn"
+          scan_summary_output_type: "table"
+          pr: "true"
+          enable_github_action_token: "true"
+          scan_dependencies: "false"
+          scan_secrets: "false"
+          scan_git_logs: "false"
+          scan_sast: "true"
+          log_level: "debug"
+          log_verbose: "true"
