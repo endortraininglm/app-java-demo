@@ -44,5 +44,7 @@ jobs:
           scan_secrets: "false"
           scan_git_logs: "false"
           scan_sast: "true"
+          endorctl_version: 'v1.7.689'
+          endorctl_checksum: '56b0e3c252ec7680584b1f68fa04e0e54d4c7f81fe4c039dd477b23d797e243d'
           log_level: "debug"
           log_verbose: "true"
