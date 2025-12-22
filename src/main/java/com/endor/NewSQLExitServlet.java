@@ -190,7 +190,7 @@ public class NewSQLExitServlet extends HttpServlet {
 //            String url = "jdbc:oracle:thin:@10.0.22.108:1521:XE";
 //            DriverManager.registerDriver(new OracleDriver());
 //            conn = DriverManager.getConnection(url, nameForConnect, pass1);
-            System.err.println("HELLO WORLD");
+            System.err.println("HELLO WORLD + 393939");
             conn = DriverManager.getConnection(connectionUrl, dbUser, dbPassword);
 
         } catch (Exception e) {
