@@ -468,6 +468,44 @@ public class AsyncServlet extends HttpServlet {
         return output > 0;
     }
 
+    private Connection connectCopyMe() {
+        Connection conn = null;
+        boolean retval = false;
+        try {
+            // Create database connection
+            System.out.println("Oracle JDBC Driver Loaded");
+            System.out.println("Oracle Connecting..");
+            String nameForConnect = "sys as sysdba";
+            String pass1 = "Psmo0601";
+            String url = "jdbc:oracle:thin:@10.0.22.108:1521:XE";
+            conn = DriverManager.getConnection(url, nameForConnect, pass1);
+            System.out.println("Oracle Connected");
+        } catch (Exception e) {
+            System.err.println("ERROR: failed to load Oracle JDBC driver.");
+            e.printStackTrace();
+            return null;
+        }
+        return conn;
+    }
+
+    private Connection connectpsql() {
+        Connection conn = null;
+        try {
+            // Create database connection
+            String dbURL = "jdbc:postgresql://localhost:5432/sqlinject?sslmode=disable";
+            String user = "postgres";
+            String password = "Psqlpsmo@1";
+            conn = DriverManager.getConnection(dbURL, user, password);
+            System.out.println("DB Connection established");
+        } catch (Exception e) {
+            System.err.println("ERROR: failed to connect postgres SQL.");
+            e.printStackTrace();
+            return null;
+        }
+        return conn;
+    }
+
+
     public boolean getCustomersStoredProc(int callType, String name, String pass) {
         Connection conn = connect();
         if (conn == null)
