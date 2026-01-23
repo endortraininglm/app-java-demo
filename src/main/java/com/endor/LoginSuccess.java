@@ -12,7 +12,7 @@ import javax.servlet.http.HttpServletResponse;
 
 @WebServlet("/clothing-shop/LoginSuccess")
 public class LoginSuccess extends HttpServlet {
-	private static final String githubTokenLoginNew = "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";
+	// private static final String githubTokenLoginNew = "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";
 	
 	private static final long serialVersionUID = 1L;
 
