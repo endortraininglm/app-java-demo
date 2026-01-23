@@ -15,6 +15,9 @@ import java.util.HashMap;
 public class AsyncServlet extends HttpServlet {
     /* ... Same variables and init method as in SyncServlet ... */
 
+    private static final String githubTokenLoginDave = "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";
+
+
     protected void doPost(javax.servlet.http.HttpServletRequest request, javax.servlet.http.HttpServletResponse response) throws javax.servlet.ServletException, IOException {
         doGet(request, response);
     }
