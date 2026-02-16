@@ -19,6 +19,12 @@ jobs:
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v3
+      with:
+        # Create a shallow clone with depth 1 - only the current commit
+        # This ensures the base branch won't be available locally
+        fetch-depth: 1
+        # Don't fetch all branches - only the PR branch
+        fetch-tags: false
     - name: Setup Java
       uses: actions/setup-java@v3
       with:
