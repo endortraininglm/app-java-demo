@@ -25,44 +25,67 @@ jobs:
         # Ensure we checkout the PR head commit (not the base branch).
         ref: ${{ github.event.pull_request.head.sha }}
 
-    - name: Debug git state (before baseline fetch)
-      shell: bash
-      run: |
-        set -euo pipefail
-        echo "=== Repo status ==="
-        git status
-        echo "=== Current HEAD ==="
-        git --no-pager log -1 --pretty=fuller || true
-        echo "=== Remotes ==="
-        git remote -v
-        echo "=== Branches (local + remote) ==="
-        git branch -vv || true
-        git branch -r || true
-
-    - name: Attempt to fetch baseline branch with time-based shallow window
+    - name: Setup to trigger ensureRefsAvailable condition (line 274)
       shell: bash
       env:
         BASE_BRANCH: incremental_sast
-        SHALLOW_DAYS: "30"
       run: |
         set -euo pipefail
-        echo "Attempting to fetch baseline branch '${BASE_BRANCH}' with --shallow-since='${SHALLOW_DAYS} days ago'"
-        # This is the behavior we want to reproduce: baseline tip is older than the shallow window,
-        # so the baseline ref and/or merge-base may not be resolvable locally.
-        # We do NOT fail the job here; we want to observe downstream scan behavior.
-        git fetch --no-tags --prune --shallow-since="${SHALLOW_DAYS} days ago" origin "refs/heads/${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}" || true
+        echo "=== Strategy: Create branch ref pointing to hash, but don't fetch commit object ==="
+        echo "This allows ForBasedBranch to resolve the branch name to a hash"
+        echo "But ensureRefsAvailable will fail to verify the hash, triggering line 274"
 
-        echo "=== Remote baseline ref resolution ==="
-        git show-ref --verify --quiet "refs/remotes/origin/${BASE_BRANCH}" && echo "origin/${BASE_BRANCH} exists" || echo "origin/${BASE_BRANCH} missing"
+        # Step 1: Get the hash of the base branch from remote (without fetching the commit)
+        echo "Getting base branch hash from remote..."
+        BASE_HASH=$(git ls-remote origin "${BASE_BRANCH}" | awk '{print $1}' | head -n1)
 
-        echo "=== Try merge-base HEAD vs origin/${BASE_BRANCH} ==="
-        (git merge-base HEAD "origin/${BASE_BRANCH}" && echo "merge-base succeeded") || echo "merge-base failed (likely missing history)"
+        if [ -z "$BASE_HASH" ]; then
+          echo "ERROR: Could not get base branch hash from remote"
+          exit 1
+        fi
 
-        echo "=== Recent log (top 30) ==="
-        git --no-pager log --oneline --decorate -n 30 || true
+        echo "Base branch hash from remote: ${BASE_HASH}"
 
-        echo "=== Shallow marker ==="
-        test -f .git/shallow && (echo "repo is shallow"; wc -l .git/shallow; head -n 20 .git/shallow) || echo "repo is not shallow"
+        # Step 2: Check if commit object already exists locally
+        if git cat-file -e "${BASE_HASH}" 2>/dev/null; then
+          echo "⚠️  Commit object already exists locally"
+          echo "   This means the commit was fetched during checkout"
+          echo "   We need to remove it or use a different hash"
+          echo "   Checking commit date..."
+          COMMIT_DATE=$(git log -1 --format="%ai" "${BASE_HASH}" 2>/dev/null || echo "unknown")
+          echo "   Commit date: ${COMMIT_DATE}"
+        else
+          echo "✓ Commit object NOT in local repo - perfect!"
+        fi
+
+        # Step 3: Create the remote ref pointing to this hash (so HashFromRef can resolve it)
+        echo "Creating remote ref: refs/remotes/origin/${BASE_BRANCH} -> ${BASE_HASH}"
+        git update-ref "refs/remotes/origin/${BASE_BRANCH}" "${BASE_HASH}" || true
+
+        # Step 4: Verify the ref exists
+        if git show-ref --verify --quiet "refs/remotes/origin/${BASE_BRANCH}"; then
+          echo "✓ Remote ref created successfully"
+          VERIFIED_HASH=$(git rev-parse "refs/remotes/origin/${BASE_BRANCH}")
+          echo "  Verified hash: ${VERIFIED_HASH}"
+
+          # Step 5: Final check - commit object should NOT exist
+          if git cat-file -e "${BASE_HASH}" 2>/dev/null; then
+            echo "⚠️  WARNING: Commit object exists - line 274 may not trigger"
+            echo "   The commit might have been fetched during checkout"
+          else
+            echo "✓ Commit object confirmed missing"
+            echo "✓ This WILL trigger line 274: 'Base branch not found locally, attempting to fetch from origin with 30-day depth'"
+            echo ""
+            echo "Flow:"
+            echo "  1. ForBasedBranch resolves '${BASE_BRANCH}' -> ${BASE_HASH} ✓"
+            echo "  2. ForBaseHead called with hash ${BASE_HASH} ✓"
+            echo "  3. ensureRefsAvailable tries: git rev-parse --verify ${BASE_HASH} ✗ (will fail)"
+            echo "  4. Logs: 'Base branch not found locally, attempting to fetch from origin with 30-day depth' ✓"
+            echo "  5. Tries: git fetch --shallow-since='30 days ago' origin ${BASE_HASH} ✗ (will fail - can't fetch hash)"
+          fi
+        else
+          echo "✗ Failed to create remote ref"
+        fi
 
     - name: Setup Java
       uses: actions/setup-java@v3
@@ -82,6 +105,7 @@ jobs:
       id: endor_scan
       run: |
         echo "Running PR incremental scan; base branch expected: incremental_sast"
+        echo "This should trigger: 'Base branch not found locally, attempting to fetch from origin with 30-day depth'"
         ./endorctl scan --sast \
           --quick-scan \
           --pr \
@@ -93,3 +117,4 @@ jobs:
           --scm-pr-id="$ENDOR_PR_ID" \
           --scm-token="$ENDOR_SCM_TOKEN" \
           --verbose --log-level=debug
+
