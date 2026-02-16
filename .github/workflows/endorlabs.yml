@@ -17,28 +17,52 @@ jobs:
       ENDOR_PR_ID: ${{ github.event.pull_request.number }}
       ENDOR_SCM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
+    - name: Checkout Repository (shallow, PR head only)
+      uses: actions/checkout@v4
       with:
-        # Create a shallow clone with depth 1 - only the current commit
-        # This ensures the base branch won't be available locally
+        # Force a shallow checkout to mirror CI pipelines that only fetch the branch under test.
         fetch-depth: 1
+        # Ensure we checkout the PR head commit (not the base branch).
+        ref: ${{ github.event.pull_request.head.sha }}
 
-    - name: Setup to trigger ensureRefsAvailable bug
+    - name: Debug git state (before baseline fetch)
+      shell: bash
       run: |
-        # Fetch the base branch name so ForBasedBranch can resolve it to a hash
-        # But use --shallow-since so if the tip is old, the commit won't be fetched
-        git fetch --shallow-since="30 days ago" origin incremental_sast:refs/remotes/origin/incremental_sast || true
-        
-        # Now delete the actual commit objects but keep the ref
-        # This simulates the hash being resolved but not available locally
-        # Get the hash of the base branch
-        BASE_HASH=$(git rev-parse origin/incremental_sast 2>/dev/null || echo "")
-        if [ -n "$BASE_HASH" ]; then
-        # Remove the commit object (but keep the ref)
-        git update-ref -d refs/heads/temp-branch 2>/dev/null || true
-        # The hash should now be unresolved when ensureRefsAvailable runs
-        fi
+        set -euo pipefail
+        echo "=== Repo status ==="
+        git status
+        echo "=== Current HEAD ==="
+        git --no-pager log -1 --pretty=fuller || true
+        echo "=== Remotes ==="
+        git remote -v
+        echo "=== Branches (local + remote) ==="
+        git branch -vv || true
+        git branch -r || true
+
+    - name: Attempt to fetch baseline branch with time-based shallow window
+      shell: bash
+      env:
+        BASE_BRANCH: incremental_sast
+        SHALLOW_DAYS: "30"
+      run: |
+        set -euo pipefail
+        echo "Attempting to fetch baseline branch '${BASE_BRANCH}' with --shallow-since='${SHALLOW_DAYS} days ago'"
+        # This is the behavior we want to reproduce: baseline tip is older than the shallow window,
+        # so the baseline ref and/or merge-base may not be resolvable locally.
+        # We do NOT fail the job here; we want to observe downstream scan behavior.
+        git fetch --no-tags --prune --shallow-since="${SHALLOW_DAYS} days ago" origin "refs/heads/${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}" || true
+
+        echo "=== Remote baseline ref resolution ==="
+        git show-ref --verify --quiet "refs/remotes/origin/${BASE_BRANCH}" && echo "origin/${BASE_BRANCH} exists" || echo "origin/${BASE_BRANCH} missing"
+
+        echo "=== Try merge-base HEAD vs origin/${BASE_BRANCH} ==="
+        (git merge-base HEAD "origin/${BASE_BRANCH}" && echo "merge-base succeeded") || echo "merge-base failed (likely missing history)"
+
+        echo "=== Recent log (top 30) ==="
+        git --no-pager log --oneline --decorate -n 30 || true
+
+        echo "=== Shallow marker ==="
+        test -f .git/shallow && (echo "repo is shallow"; wc -l .git/shallow; head -n 20 .git/shallow) || echo "repo is not shallow"
 
     - name: Setup Java
       uses: actions/setup-java@v3
@@ -57,6 +81,7 @@ jobs:
     - name: Run Endor Labs PR scan (incremental)
       id: endor_scan
       run: |
+        echo "Running PR incremental scan; base branch expected: incremental_sast"
         ./endorctl scan --sast \
           --quick-scan \
           --pr \
