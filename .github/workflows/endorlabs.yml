@@ -1,7 +1,7 @@
 name: Endor Labs Dependency and Secrets Scan
 on:
   pull_request:
-    branches: [incremental_sast]
+    branches: [main, incremental_sast, placeholder]
 jobs:
   endor-pr-scan:
     permissions:
@@ -17,79 +17,13 @@ jobs:
       ENDOR_PR_ID: ${{ github.event.pull_request.number }}
       ENDOR_SCM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - name: Checkout Repository (shallow, PR head only)
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           # Force a shallow checkout to mirror CI pipelines that only fetch the branch under test.
           fetch-depth: 1
           # Ensure we checkout the PR head commit (not the base branch).
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - name: Setup to trigger ensureRefsAvailable condition (line 274)
-        shell: bash
-        env:
-          BASE_BRANCH: incremental_sast
-          SHALLOW_DAYS: "30"
-        run: |
-          set -euo pipefail
-          echo "=== Strategy: Unshallow, then fetch with --shallow-since to get ref but not old commits ==="
-          echo "If base branch tip is older than ${SHALLOW_DAYS} days, ref exists but commit object won't"
-
-          # Step 1: Unshallow the repo (required for --shallow-since to work without errors)
-          echo "Unshallowing repository..."
-          if [ -f .git/shallow ]; then
-            echo "Repository is shallow, unshallowing..."
-            git fetch --unshallow || echo "Unshallow completed or already unshallow"
-          else
-            echo "Repository is not shallow"
-          fi
-
-          # Step 2: Get the hash from remote first to check the commit date
-          echo "Checking base branch commit date..."
-          BASE_HASH=$(git ls-remote origin "${BASE_BRANCH}" | awk '{print $1}' | head -n1)
-          if [ -z "$BASE_HASH" ]; then
-            echo "ERROR: Could not get base branch hash from remote"
-            exit 1
-          fi
-          echo "Base branch hash: ${BASE_HASH}"
-
-          # Step 3: Fetch the branch with --shallow-since
-          # This will create the ref, but if the commit is older than 30 days, the object won't be fetched
-          echo "Fetching base branch with --shallow-since='${SHALLOW_DAYS} days ago'..."
-          echo "This will create the ref, but commits older than ${SHALLOW_DAYS} days won't be fetched"
-          git fetch --shallow-since="${SHALLOW_DAYS} days ago" origin "${BASE_BRANCH}:refs/remotes/origin/${BASE_BRANCH}" 2>&1 || \
-          git fetch --shallow-since="${SHALLOW_DAYS} days ago" origin "${BASE_BRANCH}" 2>&1 || true
-
-          # Step 4: Verify the ref was created
-          if git show-ref --verify --quiet "refs/remotes/origin/${BASE_BRANCH}"; then
-            echo "✓ Remote ref created: refs/remotes/origin/${BASE_BRANCH}"
-            VERIFIED_HASH=$(git rev-parse "refs/remotes/origin/${BASE_BRANCH}")
-            echo "  Ref points to: ${VERIFIED_HASH}"
-
-            # Step 5: Check if the commit object exists
-            if git cat-file -e "${VERIFIED_HASH}" 2>/dev/null; then
-              echo "✓ Commit object EXISTS locally"
-              COMMIT_DATE=$(git log -1 --format="%ai" "${VERIFIED_HASH}" 2>/dev/null || echo "unknown")
-              echo "  Commit date: ${COMMIT_DATE}"
-              echo "⚠️  This means the commit is within the ${SHALLOW_DAYS}-day window"
-              echo "   Line 274 may NOT trigger because the commit object exists"
-              echo ""
-              echo "   To trigger line 274, the base branch tip must be older than ${SHALLOW_DAYS} days"
-            else
-              echo "✗ Commit object NOT in local repo"
-              echo "✓ This WILL trigger line 274: 'Base branch not found locally, attempting to fetch from origin with 30-day depth'"
-              echo ""
-              echo "Expected flow:"
-              echo "  1. ForBasedBranch resolves '${BASE_BRANCH}' -> ${VERIFIED_HASH} ✓"
-              echo "  2. ForBaseHead called with hash ${VERIFIED_HASH} ✓"
-              echo "  3. ensureRefsAvailable tries: git rev-parse --verify ${VERIFIED_HASH} ✗ (object missing)"
-              echo "  4. Logs: 'Base branch not found locally, attempting to fetch from origin with 30-day depth' ✓"
-              echo "  5. Tries: git fetch --shallow-since='30 days ago' origin ${VERIFIED_HASH} ✗ (will fail - can't fetch hash as branch)"
-            fi
-          else
-            echo "✗ Failed to create remote ref"
-            echo "  ForBasedBranch will try to fetch it, which may fail"
-          fi
+          ref: incremental_sast_update
 
       - name: Setup Java
         uses: actions/setup-java@v3
@@ -120,4 +54,5 @@ jobs:
             --output-type json \
             --scm-pr-id="$ENDOR_PR_ID" \
             --scm-token="$ENDOR_SCM_TOKEN" \
-            --verbose --log-level=debug
+            --verbose --log-level=debug \
+            --tags="shallow-clone-depth-1"
