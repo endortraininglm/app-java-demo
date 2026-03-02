@@ -8,8 +8,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
 import java.io.*;
+import java.sql.DriverManager;
+import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.sql.*;
 
 //@WebServlet(name = "FileUploadServlet", urlPatterns = {"/upload"})
 @MultipartConfig
@@ -76,6 +79,41 @@ public class FileUploadServlet extends HttpServlet {
                 writer.close();
             }
         }
+    }
+
+        public static String insertCustomersDemo(String first, String last, String pass) {
+        StringBuffer sbuf = new StringBuffer();
+
+        Connection conn = null;
+        String db = "jdbc:hsqldb:hsql://localhost/xdb";
+        String user = "SA";
+        String password = "";
+
+        try {
+            // Create database connection
+            conn = DriverManager.getConnection(db, user, password);
+
+            // Create and execute statement
+            Statement stmt = conn.createStatement();
+            String sql = "INSERT INTO CUSTOMER VALUES (\'" + first + "\',\'" + last + "\', \'" + pass + "')";
+            System.out.println("Adding: " + sql);
+            stmt.executeQuery(sql);
+            System.out.println("Inserted into Database");
+
+            // Clean up
+            stmt.close();
+        } catch (SQLException e) {
+            System.err.println("SQL Error:" + e.getMessage());
+        } finally {
+            try {
+                // Close connection
+                if (conn != null)
+                    conn.close();
+            } catch (SQLException e) {
+                System.err.println(e.getMessage());
+            }
+        }
+        return sbuf.toString();
     }
 
     private String getFileName(final Part part) {

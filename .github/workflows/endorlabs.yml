@@ -1,0 +1,58 @@
+name: Endor Labs Dependency and Secrets Scan
+on:
+  pull_request:
+    branches: [main, incremental_sast, placeholder]
+jobs:
+  endor-pr-scan:
+    permissions:
+      security-events: write # Used to upload Sarif artifact to GitHub
+      contents: read # Used to check out a private repository
+      actions: read # Required for private repositories to upload Sarif files. GitHub Advanced Security licenses are required.
+      id-token: write # Used for keyless authentication with Endor Labs
+      pull-requests: write
+    runs-on: ubuntu-latest
+    env:
+      ENDOR_API: https://api.endorlabs.com
+      ENDOR_NAMESPACE: leonardo-learn
+      ENDOR_PR_ID: ${{ github.event.pull_request.number }}
+      ENDOR_SCM_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      ENDOR_LOG_LEVEL: debug
+      ENDOR_LOG_VERBOSE: true
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # Force a shallow checkout to mirror CI pipelines that only fetch the branch under test.
+          fetch-depth: 1
+          # Ensure we checkout the PR head commit (not the base branch).
+          ref: incremental_sast_update
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "microsoft"
+          java-version: "17"
+          cache: maven
+      - name: Build Package
+        run: mvn clean install
+      - name: Download endorctl
+        run: |
+          echo "Downloading latest endorctl"
+          curl -sSL "$ENDOR_API/download/latest/endorctl_linux_amd64" -o endorctl
+          echo "$(curl -s $ENDOR_API/sha/latest/endorctl_linux_amd64)  endorctl" | sha256sum -c -
+          chmod +x ./endorctl
+      - name: Run Endor Labs PR scan (incremental)
+        id: endor_scan
+        run: |
+          echo "Running PR incremental scan; base branch expected: incremental_sast"
+          echo "This should trigger: 'Base branch not found locally, attempting to fetch from origin with 30-day depth'"
+          ./endorctl scan --sast \
+            --pr \
+            --pr-incremental \
+            --enable-pr-comments \
+            --namespace "$ENDOR_NAMESPACE" \
+            --enable-github-action-token=true \
+            --output-type json \
+            --scm-pr-id="$ENDOR_PR_ID" \
+            --scm-token="$ENDOR_SCM_TOKEN" \
+            --tags="clone-depth-0"
