@@ -21,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           # Force a shallow checkout to mirror CI pipelines that only fetch the branch under test.
-          fetch-depth: 1
+          fetch-depth: 0
           # Ensure we checkout the PR head commit (not the base branch).
           ref: incremental_sast_update
 
@@ -55,4 +55,4 @@ jobs:
             --scm-pr-id="$ENDOR_PR_ID" \
             --scm-token="$ENDOR_SCM_TOKEN" \
             --verbose --log-level=debug \
-            --tags="shallow-clone-depth-1"
+            --tags="clone-depth-0"
