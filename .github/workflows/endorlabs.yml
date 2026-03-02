@@ -45,7 +45,6 @@ jobs:
           echo "Running PR incremental scan; base branch expected: incremental_sast"
           echo "This should trigger: 'Base branch not found locally, attempting to fetch from origin with 30-day depth'"
           ./endorctl scan --sast \
-            --quick-scan \
             --pr \
             --pr-incremental \
             --enable-pr-comments \
