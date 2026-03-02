@@ -19,11 +19,11 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          # Force a shallow checkout to mirror CI pipelines that only fetch the branch under test.
-          fetch-depth: 0
-          # Ensure we checkout the PR head commit (not the base branch).
-          ref: incremental_sast_update
+        # with:
+        #   # Force a shallow checkout to mirror CI pipelines that only fetch the branch under test.
+        #   fetch-depth: 0
+        #   # Ensure we checkout the PR head commit (not the base branch).
+        #   ref: incremental_sast_update
 
       - name: Setup Java
         uses: actions/setup-java@v3
